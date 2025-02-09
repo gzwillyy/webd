@@ -141,14 +141,14 @@ if [[ "$CENTOS_VERSION" -ge 7 ]]; then
     for port in "${PORTS[@]}"; do
         sudo /sbin/iptables -I INPUT -p tcp --dport "$port" -j ACCEPT
     done
-    sudo /etc/rc.d/init.d/iptables save
+    sudo /sbin/iptables save
     echo "防火墙端口已开放。"
 else
     echo "使用 iptables 配置防火墙端口..."
     for port in "${PORTS[@]}"; do
         sudo /sbin/iptables -I INPUT -p tcp --dport "$port" -j ACCEPT
     done
-    sudo /etc/rc.d/init.d/iptables save
+    sudo /sbin/iptables save
     echo "防火墙端口已开放。"
 fi
 

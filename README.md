@@ -3,6 +3,6 @@
 ## use
 
 ```
-curl -s https://raw.githubusercontent.com/gzwillyy/webd/master/install_kangle_centos.sh | bash && chmod +x ./install_kangle_centos.sh && ./install_kangle_centos.sh
+curl -L -o install_kangle_centos.sh  https://raw.githubusercontent.com/gzwillyy/webd/master/install_kangle_centos.sh && chmod +x ./install_kangle_centos.sh && ./install_kangle_centos.sh /vsh
 
 ```
