@@ -58,10 +58,10 @@ fi
 if [[ "$VERSION_ID" == "6" ]]; then
     CENTOS_VERSION=6
     DSO_ZIP="kangle-dso-${DSOVERSION}.zip"
-elif [[ "$VERSION_ID" == "7"]]; then
+elif [[ "$VERSION_ID" == "7" ]]; then
     CENTOS_VERSION=7
     DSO_ZIP="kangle-dso-${DSOVERSION}-7.zip"
-elif [[ "$VERSION_ID" == "8"]]; then
+elif [[ "$VERSION_ID" == "8" ]]; then
     CENTOS_VERSION=8
     DSO_ZIP="kangle-dso-${DSOVERSION}-8.zip"
 elif [[ "$VERSION_ID" == "Stream" ]]; then
@@ -274,11 +274,7 @@ fi
 echo "更新 Kangle 首页..."
 
 sudo rm -rf "$PREFIX/www/index.html"
-EASY_PANEL_URL="https://github.com/gzwillyy/kangle/raw/master/easypanel/index.html"
-if ! wget "$EASY_PANEL_URL" -O "$PREFIX/www/index.html"; then
-    echo "更新首页失败"
-    exit 1
-fi
+
 echo "首页已更新。"
 
 # 重启 Kangle 以应用更改
@@ -286,7 +282,8 @@ echo "重启 Kangle 以应用更改..."
 # 退出kangle
 sudo $PREFIX/bin/kangle -q
 # 建立硬盘cache目录
-sudo $PREFIX/bin/kangle -z /vsh/cache/kangle
+mkdir -p /vhs/cache/kangle
+sudo $PREFIX/bin/kangle -z /vhs/cache/kangle
 
 cd ..
 
