@@ -134,7 +134,11 @@ echo "安装必要的软件包..."
 sudo $PKG_MANAGER -y update
 
 # 安装软件包
-sudo $PKG_MANAGER -y install libjpeg-turbo libtiff libpng unzip wget
+sudo $PKG_MANAGER -y install libjpeg-turbo libtiff libpng unzip wget iptables-services
+
+# 启用并启动 iptables 服务
+sudo systemctl start iptables
+sudo systemctl enable iptables
 
 # =============================================================================
 # 配置防火墙
@@ -144,23 +148,33 @@ echo "配置防火墙..."
 
 PORTS=(80 443 3311 3312 3313 21)
 
-# 确保 firewalld 停用并禁用
+# 检查操作系统版本并配置防火墙规则
 if [[ "$CENTOS_VERSION" -ge 7 ]]; then
-    sudo systemctl stop firewalld || true
-    sudo systemctl disable firewalld || true
-    echo "已停用 firewalld。"
-else
-    sudo service ip6tables stop 2>/dev/null || true
-    sudo chkconfig ip6tables off 2>/dev/null || true
-    echo "已停用 ip6tables。"
+    # CentOS 7 和更高版本默认使用 firewalld，我们需要先停用 firewalld
+    echo "检测到 CentOS 7 或更高版本，正在停用 firewalld..."
+
+    # 停用并禁用 firewalld
+    sudo systemctl stop firewalld
+    sudo systemctl disable firewalld
+
+    # 安装并启用 iptables
+    sudo yum install -y iptables-services
+    sudo systemctl start iptables
+    sudo systemctl enable iptables
+    echo "已成功停用 firewalld 并启用 iptables。"
 fi
 
-# 使用 iptables 配置防火墙端口
+# 配置 iptables 防火墙规则
 for port in "${PORTS[@]}"; do
     sudo /sbin/iptables -I INPUT -p tcp --dport "$port" -j ACCEPT
 done
-sudo /etc/rc.d/init.d/iptables save
-echo "防火墙端口已开放。"
+
+# 保存 iptables 配置
+sudo service iptables save
+# 重启 iptables 服务以应用规则
+sudo systemctl restart iptables
+
+echo "防火墙端口已开放（通过 iptables）。"
 
 # =============================================================================
 # 安装 Kangle
