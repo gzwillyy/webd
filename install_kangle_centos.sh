@@ -25,6 +25,15 @@ fi
 PREFIX=$1
 
 # =============================================================================
+# 检查是否为 root 用户
+# =============================================================================
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "此脚本需要以 root 用户身份运行。"
+    exit 1
+fi
+
+# =============================================================================
 # 检测操作系统类型和版本
 # =============================================================================
 
@@ -51,7 +60,6 @@ if [[ "$VERSION_ID" == "6" ]]; then
 elif [[ "$VERSION_ID" == "7" || "$VERSION_ID" == "8" ]]; then
     CENTOS_VERSION=$VERSION_ID
 elif [[ "$VERSION_ID" == "Stream" ]]; then
-    # 对于 CentOS Stream 8，VERSION_ID 仍为 "8"
     CENTOS_VERSION="8"
 else
     echo "不支持的 CentOS 版本: $VERSION_ID"
@@ -136,39 +144,23 @@ echo "配置防火墙..."
 
 PORTS=(80 443 3311 3312 3313 21)
 
+# 确保 firewalld 停用并禁用
 if [[ "$CENTOS_VERSION" -ge 7 ]]; then
-    echo "使用 iptables 配置防火墙端口..."
-    for port in "${PORTS[@]}"; do
-        sudo /sbin/iptables -I INPUT -p tcp --dport "$port" -j ACCEPT
-    done
-    sudo /sbin/iptables save
-    echo "防火墙端口已开放。"
-else
-    echo "使用 iptables 配置防火墙端口..."
-    for port in "${PORTS[@]}"; do
-        sudo /sbin/iptables -I INPUT -p tcp --dport "$port" -j ACCEPT
-    done
-    sudo /sbin/iptables save
-    echo "防火墙端口已开放。"
-fi
-
-# =============================================================================
-# 停用 IPv6 防火墙和 firewalld
-# =============================================================================
-
-echo "停用 firewalld 和 ip6tables..."
-
-if [[ "$CENTOS_VERSION" -ge 7 ]]; then
-    sudo systemctl stop firewalld 2>/dev/null || true
-    sudo systemctl disable firewalld 2>/dev/null || true
-    sudo systemctl stop ip6tables 2>/dev/null || true
-    sudo systemctl disable ip6tables 2>/dev/null || true
-    echo "firewalld 和 ip6tables 已停用。"
+    sudo systemctl stop firewalld || true
+    sudo systemctl disable firewalld || true
+    echo "已停用 firewalld。"
 else
     sudo service ip6tables stop 2>/dev/null || true
     sudo chkconfig ip6tables off 2>/dev/null || true
-    echo "firewalld 和 ip6tables 已停用。"
+    echo "已停用 ip6tables。"
 fi
+
+# 使用 iptables 配置防火墙端口
+for port in "${PORTS[@]}"; do
+    sudo /sbin/iptables -I INPUT -p tcp --dport "$port" -j ACCEPT
+done
+sudo /etc/rc.d/init.d/iptables save
+echo "防火墙端口已开放。"
 
 # =============================================================================
 # 安装 Kangle
@@ -179,7 +171,11 @@ echo "安装 Kangle..."
 KANGLE_TAR="kangle-ent-${VERSION}${ARCH}.tar.gz"
 KANGLE_URL="https://github.com/gzwillyy/kangle/raw/master/ent/${KANGLE_TAR}"
 
-wget "$KANGLE_URL" -O "$KANGLE_TAR"
+# 下载 Kangle 安装包
+if ! wget "$KANGLE_URL" -O "$KANGLE_TAR"; then
+    echo "下载 Kangle 安装包失败"
+    exit 1
+fi
 echo "已下载 Kangle 安装包。"
 
 tar xzf "$KANGLE_TAR"
@@ -195,7 +191,10 @@ mkdir -p "$PREFIX"
 
 # 下载许可文件
 LICENSE_URL="https://github.com/gzwillyy/kangle/raw/master/ent/license/Ultimate/license.txt"
-wget "$LICENSE_URL" -O "$PREFIX/license.txt"
+if ! wget "$LICENSE_URL" -O "$PREFIX/license.txt"; then
+    echo "下载许可文件失败"
+    exit 1
+fi
 echo "已下载许可文件。"
 
 # 运行安装脚本
@@ -205,7 +204,10 @@ echo "Kangle 安装脚本已运行。"
 
 # 启动 Kangle
 echo "启动 Kangle..."
-sudo $PREFIX/bin/kangle
+if ! sudo $PREFIX/bin/kangle; then
+    echo "启动 Kangle 失败，请检查权限或日志。"
+    exit 1
+fi
 
 # =============================================================================
 # 配置开机自启
@@ -214,12 +216,10 @@ sudo $PREFIX/bin/kangle
 echo "配置开机自启..."
 
 if [[ "$CENTOS_VERSION" -eq 6 ]]; then
-    # 对于 CentOS 6，使用 rc.local
     echo "$PREFIX/bin/kangle" | sudo tee -a /etc/rc.d/rc.local
     sudo chmod +x /etc/rc.d/rc.local
     echo "已将 Kangle 添加到 /etc/rc.d/rc.local 以实现开机自启。"
 elif [[ "$CENTOS_VERSION" -ge 7 ]]; then
-    # 对于 CentOS 7-8 / Stream 8，使用 systemd
     KANGLE_SERVICE_FILE="/etc/systemd/system/kangle.service"
 
     if [ ! -f "$KANGLE_SERVICE_FILE" ]; then
@@ -236,7 +236,6 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 EOL
-
         sudo systemctl daemon-reload
         sudo systemctl enable kangle
         sudo systemctl start kangle
@@ -254,7 +253,10 @@ echo "更新 Kangle 首页..."
 
 sudo rm -rf "$PREFIX/www/index.html"
 EASY_PANEL_URL="https://github.com/gzwillyy/kangle/raw/master/easypanel/index.html"
-wget "$EASY_PANEL_URL" -O "$PREFIX/www/index.html"
+if ! wget "$EASY_PANEL_URL" -O "$PREFIX/www/index.html"; then
+    echo "更新首页失败"
+    exit 1
+fi
 echo "首页已更新。"
 
 # 重启 Kangle 以应用更改
@@ -273,7 +275,10 @@ echo "安装 DSO..."
 DSO_ZIP="kangle-dso-${DSOVERSION}.zip"
 DSO_URL="https://github.com/gzwillyy/kangle/raw/master/dso/${DSO_ZIP}"
 
-wget "$DSO_URL" -O "$DSO_ZIP"
+if ! wget "$DSO_URL" -O "$DSO_ZIP"; then
+    echo "下载 DSO 包失败"
+    exit 1
+fi
 echo "已下载 DSO 包。"
 
 unzip -o "$DSO_ZIP"
