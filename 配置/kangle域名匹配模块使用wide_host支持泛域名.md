@@ -1,0 +1,6 @@
+
+
+kangle域名匹配模块使用wide_host支持泛域名
+
+host模块不支持，要用另一个模块，url也可以，有另一个支持正则的host模块
+支持的模块是wide_host
